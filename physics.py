@@ -2,7 +2,7 @@ import math
 
 # vector implementation: (x,y)
 
-GRAVITY = 9.8
+GRAVITY = -9.8
 
 def vector(x,y):
     return (x,y)

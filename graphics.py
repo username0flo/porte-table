@@ -58,6 +58,9 @@ __version="1.4"
 # 2. Affichage
 ##################
 
+def couleur(rouge, vert, bleu):
+    return pygame.Color(rouge, vert, bleu)
+
 """ 2.1 Initialisation de la fenêtre dans laquelle on dessine """
 def init_fenetre(largeur,hauteur,titre = "Ma fenêtre"):
     """ Lance une fenetre de dimension largeur par hauteur. Le titre est optionnel """
@@ -231,7 +234,10 @@ __images = dict()
 def charge_image(nom_image):
     global __images_original,__images
     """ charge une image en mémoire """
-    __images_original[nom_image] = pygame.image.load(nom_image).convert()
+    if nom_image[-4:] == ".png":
+        __images_original[nom_image] = pygame.image.load(nom_image).convert_alpha()
+    else:
+        __images_original[nom_image] = pygame.image.load(nom_image).convert()
     __images[nom_image] = __images_original[nom_image]
 
 def modifie_transparence(nom_image,couleur_transparente=None,alpha=100):
