@@ -11,25 +11,67 @@ def get_input():
     return (arrows, mouse)
 
 
-def move_player(player, map, event, gravity):
+def move_player(player, map, event, gravity, delta_t):
     # don't work because when we move left we are in colision with the floor because of gravity so we backtracking to a stable position that is the initial position
     arrows, click = event
-    prect,pvect = player
-    pvect = multiplication(arrows, PLAYER_SPEED)
-    grav_vect = (0.0, gravity)
-    prect = move_rect(prect, grav_vect)
-    prect = move_rect(prect,pvect)
-    i_rect = (int(prect[0]), int(prect[1]), prect[2], prect[3])
+    prect, pvect = player
 
-    normalized = normalize(vect_sum(grav_vect, pvect))
-    # normalized = normalize(pvect)
+    ax, ay = arrows
+    x,y = pvect
+    if ay == 0:
+        pvect = (ax * PLAYER_SPEED * delta_t, y)
+    elif ay == 1:
+        pvect = (0.0,JUMP * delta_t)
+    grav_vect = (0.0, gravity * delta_t)
+    pvect = vect_sum(pvect, grav_vect)
+
+    x,y = pvect
+    temp = (x,0.0)
+    prect = move_rect(prect, temp)
+    has_colision = False
+    opposite = (-sign(x),0)
+    while colision(map, int_rect(prect), CELL_SIZE):
+        has_colision = True
+        prect = move_rect(prect, opposite)
+    if(has_colision):
+        pvect = (0.0,y)
+    
+    temp = (0.0, y)
+    prect = move_rect(prect,temp)
+    has_colision = False
+    opposite = (0,-sign(y))
+    while colision(map, int_rect(prect), CELL_SIZE):
+        has_colision = True
+        prect = move_rect(prect, opposite)
+    if(has_colision):
+        pvect = (x,0.0)
+
+    return (int_rect(prect),pvect)
+
+def apply_colision(rect, vect):
+    return_code = False
+    normalized = normalize(vect)
     oposite = opposite_vect(normalized)
     
-    while colision(map, i_rect, CELL_SIZE):
-        prect = move_rect(prect, oposite)
-        i_rect = (int(prect[0]), int(prect[1]), prect[2], prect[3])
+    while colision(map, int_rect(rect), CELL_SIZE):
+        return_code = True
+        rect = move_rect(rect, oposite)
+    return (return_code, rect)
 
-    return (i_rect,pvect)
+def position_in_window(rect):
+    x,y,w,h = rect
+    if x < 0:
+        x = 0
+    elif x + w >= WINDOW_W:
+        x = WINDOW_W - w
+
+    if y < 0:
+        y = 0
+    elif y + h >= WINDOW_H:
+        y = WINDOW_H - h
+    
+    return (x,y,w,h)
+
 
 def setup_portal():
     pass
@@ -50,11 +92,14 @@ def draw_game(map, portals, player, img_player):
     affiche_tout()
 
 def wait(nom_chrono, fps):
-    tmps = lire_chrono("temps")
+    tmps = lire_chrono(nom_chrono)
     delta_t = 1000/fps
+    ret = tmps
     if(tmps < delta_t):
+        ret = 1/fps
         sleep((delta_t - tmps)/1000)
-    init_chrono("temps")
+    init_chrono(nom_chrono)
+    return ret
 
 
 
@@ -71,7 +116,8 @@ NB_CELL_H = WINDOW_H // 20
 
 CELL_SIZE = WINDOW_W // NB_CELL_W # or : WINDOW_H // NB_CELL_H
 
-PLAYER_SPEED = 10
+PLAYER_SPEED = 200
+JUMP = 400
 
 player = (rect(0,100,10,10), vector(0.0,0.0))
 img_player = "images/player.png"
@@ -87,6 +133,7 @@ for i in range(NB_CELL_W):
 
 
 FPS = 60
+delta_t = 1/FPS
 
 lance_chrono("temps")
 
@@ -95,6 +142,6 @@ lance_chrono("temps")
 while(pas_echap()):
     event = get_input()
     setup_portal()
-    player = move_player(player, map, event, GRAVITY)
+    player = move_player(player, map, event, GRAVITY, delta_t)
     draw_game(map, None, player, img_player)
-    wait("temps", FPS)
+    delta_t = wait("temps", FPS)

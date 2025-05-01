@@ -3,7 +3,7 @@ from utils import *
 
 # vector implementation: (x,y)
 
-GRAVITY = -3.8
+GRAVITY = -9.8
 
 def vector(x,y):
     return (x,y)
