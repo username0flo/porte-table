@@ -40,7 +40,7 @@ def colision(map, rect, cell_size):
     for coord in map:
         x,y = grid2window(coord, cell_size)
         block = (x,y,cell_size,cell_size)
-        if has_intersection(rect, block):
+        if has_intersection(rect, block) or has_intersection(block,rect):
             return True
     return False
 
