@@ -8,12 +8,15 @@ from time import sleep
 def get_input():
     arrows = get_fleches()
     mouse = last_clic()
-    return (arrows, mouse)
+    touche = ""
+    if(touche_enfoncee('K_SPACE')):
+        touche = " "
+    return (arrows, mouse, touche)
 
 
 def move_player(player, map, event, gravity, delta_t):
     # don't work because when we move left we are in colision with the floor because of gravity so we backtracking to a stable position that is the initial position
-    arrows, click = event
+    arrows, click, touche = event
     prect, pvect, jump = player
 
     ax, ay = arrows
@@ -21,10 +24,10 @@ def move_player(player, map, event, gravity, delta_t):
     if ay == 0:
         pvect = (ax * PLAYER_SPEED * delta_t, y)
     elif ay == 1 and not(jump):
-        jump = 1
         pvect = (0.0,JUMP * delta_t)
     grav_vect = (0.0, gravity * delta_t)
     pvect = vect_sum(pvect, grav_vect)
+    jump = 1
 
     x,y = pvect
     temp = (x,0.0)
@@ -76,7 +79,7 @@ def position_in_window(rect):
 
 
 def setup_portal(event, player, map, portals):
-    arrows, mouse = event
+    arrows, mouse, touche = event
     if mouse is None:
         return
     prect, pvect, jump = player
@@ -96,19 +99,22 @@ def setup_portal(event, player, map, portals):
     ryt = ry - vecty
 
     portals[0] = ((rx, ry), couleur(0,47,173), colision(map, (rx, ryt, rw, rh), CELL_SIZE))
-def draw_game(map, portals, player, img_player):
-    remplir_fenetre(couleur(40, 93, 164))
-    for coord in map:
-        affiche_image(map[coord], grid2window(coord,CELL_SIZE))
-    if img_player != None:
-        rect, vector, jump = player
-        x, y, w, h = rect
-        affiche_image(img_player, (x, y))
-    for p in portals:
-        if not(p is None):
-            portal_coord, color, vertical = p
-            x, y = portal_coord
-            affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * 17 + 3, y + vertical * 17 + 3), color)
+def draw_game(map, portals, player, img_player, title_screen):
+    if(title_screen):
+        affiche_image(TITLE_SCREEN,(0,0))
+    else:
+        remplir_fenetre(couleur(40, 93, 164))
+        for coord in map:
+            affiche_image(map[coord], grid2window(coord,CELL_SIZE))
+        if img_player != None:
+            rect, vector, jump = player
+            x, y, w, h = rect
+            affiche_image(img_player, (x, y))
+        for p in portals:
+            if not(p is None):
+                portal_coord, color, vertical = p
+                x, y = portal_coord
+                affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * 17 + 3, y + vertical * 17 + 3), color)
     affiche_tout()
 
 def wait(nom_chrono, fps):
@@ -131,8 +137,8 @@ portals = [None, None] # for one blue portal inside : ((120, 80), "bleu", 1) 1 o
 WINDOW_W, WINDOW_H = 800, 600
 init_fenetre(WINDOW_W, WINDOW_H,"porte table")
 
-NB_CELL_W = WINDOW_W // 20
-NB_CELL_H = WINDOW_H // 20
+NB_CELL_W = WINDOW_W // 40
+NB_CELL_H = WINDOW_H // 40
 
 CELL_SIZE = WINDOW_W // NB_CELL_W # or : WINDOW_H // NB_CELL_H
 
@@ -150,14 +156,21 @@ affiche_auto_off()
 # map: a dict of key = coordinates (i,j) and value = a bloc type
 HERBE = "images/herbe.png"
 PIERRE  = "images/pierres.png"
+MARBLE = "images/marble.png"
+TITLE_SCREEN = "images/title_screen.png"
 load_tile(HERBE, CELL_SIZE)
 load_tile(PIERRE, CELL_SIZE)
+load_tile(MARBLE, CELL_SIZE)
+charge_image(TITLE_SCREEN)
+modifie_taille_image(TITLE_SCREEN,WINDOW_W, WINDOW_H)
+ttl_scr = True
+
 map = {}
 for i in range(NB_CELL_W):
-    map[(i,0)] = HERBE
+    map[(i,0)] = MARBLE
 
 for j in range(7):
-    map[(10,10+j)] = HERBE
+    map[(10,10+j)] = MARBLE
 
 FPS = 60
 delta_t = 1/FPS
@@ -168,7 +181,11 @@ lance_chrono("temps")
 
 while(pas_echap()):
     event = get_input()
-    setup_portal(event, player, map, portals)
-    player = move_player(player, map, event, GRAVITY, delta_t)
-    draw_game(map, portals, player, img_player)
+    arrow, mouse, touche = event
+    if(touche == " "):
+        ttl_scr = False
+    if not(ttl_scr):
+        setup_portal(event, player, map, portals)
+        player = move_player(player, map, event, GRAVITY, delta_t)
+    draw_game(map, portals, player, img_player, ttl_scr)
     delta_t = wait("temps", FPS)
