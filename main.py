@@ -11,6 +11,9 @@ def get_input():
     touche = ""
     if(touche_enfoncee('K_SPACE')):
         touche = " "
+    elif(touche_enfoncee('K_RSHIFT')):
+        touche = "rshift"
+        sleep(0.1)
     return (arrows, mouse, touche)
 
 
@@ -79,7 +82,10 @@ def position_in_window(rect):
 
 
 def setup_portal(event, player, map, portals):
+    global active_portal
     arrows, mouse, touche = event
+    if touche == "rshift":
+        active_portal = not(active_portal)
     if mouse is None:
         return
     prect, pvect, jump = player
@@ -91,14 +97,22 @@ def setup_portal(event, player, map, portals):
     rect = (playerx, playery, 0, 0)
     while not(colision(map, rect, CELL_SIZE)):
         if not(has_intersection(rect, rect_window)):
-            portals[0] = None
+            portals[active_portal] = None
             return
         rect = move_rect(rect, (vectx, vecty))
+    pos = colision(map, rect, CELL_SIZE)
+    x,y = pos
+    if(vectx < 0):
+        x += CELL_SIZE - 3
+    if(vecty < 0):
+        y += CELL_SIZE - 3
 
     rx, ry, rw, rh = rect
     ryt = ry - vecty
 
-    portals[0] = ((rx, ry), couleur(0,47,173), colision(map, (rx, ryt, rw, rh), CELL_SIZE))
+    portals[active_portal] = ((int(x), int(y)), PORTALS_COLOR[active_portal], bool(colision(map, (rx, ryt, rw, rh), CELL_SIZE)))
+
+
 def draw_game(map, portals, player, img_player, title_screen):
     if(title_screen):
         affiche_image(TITLE_SCREEN,(0,0))
@@ -110,11 +124,12 @@ def draw_game(map, portals, player, img_player, title_screen):
             rect, vector, jump = player
             x, y, w, h = rect
             affiche_image(img_player, (x, y))
+        affiche_rectangle_plein((0,WINDOW_H -30),(30,WINDOW_H),PORTALS_COLOR[active_portal])
         for p in portals:
             if not(p is None):
                 portal_coord, color, vertical = p
                 x, y = portal_coord
-                affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * 17 + 3, y + vertical * 17 + 3), color)
+                affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * CELL_SIZE +3, y + vertical * CELL_SIZE +3), color)
     affiche_tout()
 
 def wait(nom_chrono, fps):
@@ -133,6 +148,8 @@ def wait(nom_chrono, fps):
 
 portals = [None, None] # for one blue portal inside : ((120, 80), "bleu", 1) 1 or 0 for if it's vertical or horizontal
 # with h = 3 and w = 20 for horizontal and h = 20 and w = 3 for vertical
+active_portal = 0
+PORTALS_COLOR = [bleu,orange]
 
 WINDOW_W, WINDOW_H = 800, 600
 init_fenetre(WINDOW_W, WINDOW_H,"porte table")

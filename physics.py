@@ -41,7 +41,7 @@ def colision(map, rect, cell_size):
         x,y = grid2window(coord, cell_size)
         block = (x,y,cell_size,cell_size)
         if has_intersection(rect, block) or has_intersection(block,rect):
-            return True
+            return (x,y)
     return False
 
 def vect_sum(v1, v2):
