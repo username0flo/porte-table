@@ -17,7 +17,46 @@ def get_input():
     return (arrows, mouse, touche)
 
 
-def move_player(player, map, event, gravity, delta_t):
+def new_pos(player,portals, index):
+    src_pos, src_col, src_vertical, src_origin = portals[index] # src_portal
+    dst_pos, dst_col, dst_vertical, dst_origin = portals[not(index)] #dest portal
+    prect, pvect, jmp = player
+
+    vx,vy = pvect   
+    dx,dy = dst_pos
+
+    # se sert a drien 
+    if not( (src_vertical and dst_vertical) or not(src_vertical or dst_vertical) ): #src_vertical xor dst_vertical
+        temp = vy
+        vy = vx
+        vx = temp
+    elif src_origin == dst_origin:
+        if(dst_vertical):
+            vx *= -1
+        else:
+            vy *= -1
+
+    
+    x,y,w,h = prect
+    x = dx
+    y = dy
+
+    if(dst_origin):
+        if(dst_vertical):
+            x-= w+1
+        else:
+            y -= h+1
+    elif(dst_vertical):
+        x += 1
+    else:
+        y += 1
+    
+    return ((x,y,w,h),(vx,vy),jmp)
+
+
+
+
+def move_player(player, map, portals, event, gravity, delta_t):
     # don't work because when we move left we are in colision with the floor because of gravity so we backtracking to a stable position that is the initial position
     arrows, click, touche = event
     prect, pvect, jump = player
@@ -31,6 +70,7 @@ def move_player(player, map, event, gravity, delta_t):
     grav_vect = (0.0, gravity * delta_t)
     pvect = vect_sum(pvect, grav_vect)
     jump = 1
+    portals_is_active = not(portals[0] is None or portals[1] is None)
 
     x,y = pvect
     temp = (x,0.0)
@@ -38,6 +78,12 @@ def move_player(player, map, event, gravity, delta_t):
     has_colision = False
     opposite = (-sign(x),0)
     while colision(map, int_rect(prect), CELL_SIZE):
+
+        if(portals_is_active):
+            for i,portal in enumerate(portals):
+                if point_in_rect(portal_center(portal),prect):
+                    return new_pos((prect,pvect,1),portals,i)
+                
         has_colision = True
         prect = move_rect(prect, opposite)
     if(has_colision):
@@ -48,6 +94,12 @@ def move_player(player, map, event, gravity, delta_t):
     has_colision = False
     opposite = (0,-sign(y))
     while colision(map, int_rect(prect), CELL_SIZE):
+
+        if(portals_is_active):
+            for i,portal in enumerate(portals):
+                if point_in_rect(portal_center(portal),prect):
+                    return new_pos((prect,pvect,1),portals,i)
+                
         has_colision = True
         prect = move_rect(prect, opposite)
     if(has_colision):
@@ -103,23 +155,29 @@ def setup_portal(event, player, map, portals):
     pos = colision(map, rect, CELL_SIZE)
     x,y = pos
     if(vectx < 0):
-        x += CELL_SIZE - 3
+        x += CELL_SIZE
     if(vecty < 0):
-        y += CELL_SIZE - 3
+        y += CELL_SIZE
 
     rx, ry, rw, rh = rect
     ryt = ry - vecty
 
-    portals[active_portal] = ((int(x), int(y)), PORTALS_COLOR[active_portal], bool(colision(map, (rx, ryt, rw, rh), CELL_SIZE)))
+    vertical = bool(colision(map, (rx, ryt, rw, rh), CELL_SIZE))
+    if(vertical):
+        portals[active_portal] = ((int(x), int(y)), PORTALS_COLOR[active_portal], vertical, vectx > 0)
+    else:
+        portals[active_portal] = ((int(x), int(y)), PORTALS_COLOR[active_portal], vertical, vecty > 0)
+    
 
 
-def draw_game(map, portals, player, img_player, title_screen):
+def draw_game(map, portals, player, img_player, title_screen, end):
     if(title_screen):
         affiche_image(TITLE_SCREEN,(0,0))
     else:
         remplir_fenetre(couleur(40, 93, 164))
         for coord in map:
             affiche_image(map[coord], grid2window(coord,CELL_SIZE))
+        affiche_image(END, grid2window(end,CELL_SIZE))
         if img_player != None:
             rect, vector, jump = player
             x, y, w, h = rect
@@ -127,9 +185,12 @@ def draw_game(map, portals, player, img_player, title_screen):
         affiche_rectangle_plein((0,WINDOW_H -30),(30,WINDOW_H),PORTALS_COLOR[active_portal])
         for p in portals:
             if not(p is None):
-                portal_coord, color, vertical = p
+                portal_coord, color, vertical, origin = p
                 x, y = portal_coord
-                affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * CELL_SIZE +3, y + vertical * CELL_SIZE +3), color)
+                if(origin):
+                    affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * CELL_SIZE + 3* vertical, y + vertical * CELL_SIZE +3* int(not(vertical)) ), color)
+                else:
+                    affiche_rectangle_plein(portal_coord, (x + int(not(vertical)) * CELL_SIZE - 3* vertical, y + vertical * CELL_SIZE -3* int(not(vertical)) ), color)
     affiche_tout()
 
 def wait(nom_chrono, fps):
@@ -142,11 +203,25 @@ def wait(nom_chrono, fps):
     init_chrono(nom_chrono)
     return ret
 
+def portal_center(portal):
+    (x,y),color,vertical, origin = portal
+    if(vertical):
+        y += CELL_SIZE//2
+    else:
+        x += CELL_SIZE//2
+    return (x,y)
+
+def end_game(player, end):
+    prect, pvect, jmp = player
+    endx, endy = grid2window(end, CELL_SIZE)
+    end_rect =  endx, endy, CELL_SIZE, CELL_SIZE
+    return has_intersection(prect,end_rect)
+
 
 
 #init
 
-portals = [None, None] # for one blue portal inside : ((120, 80), "bleu", 1) 1 or 0 for if it's vertical or horizontal
+portals = [None, None] # for one blue portal inside : ((120, 80), "bleu", 1,0) 1 or 0 for if it's vertical or horizontal
 # with h = 3 and w = 20 for horizontal and h = 20 and w = 3 for vertical
 active_portal = 0
 PORTALS_COLOR = [bleu,orange]
@@ -163,7 +238,7 @@ PLAYER_SPEED = 200
 JUMP = 400
 
 player_size = 32
-player = (rect(0,50,player_size,player_size), vector(0.0,0.0),1)
+player = (rect(100,50,player_size,player_size), vector(0.0,0.0),1)
 img_player = "images/player.png"
 charge_image(img_player)
 modifie_taille_image(img_player,player_size, player_size)
@@ -182,12 +257,23 @@ charge_image(TITLE_SCREEN)
 modifie_taille_image(TITLE_SCREEN,WINDOW_W, WINDOW_H)
 ttl_scr = True
 
+END = "images/arrivee.png"
+load_tile(END, CELL_SIZE)
+end_cell = NB_CELL_W -1, 6
+
 map = {}
 for i in range(NB_CELL_W):
     map[(i,0)] = MARBLE
+    map[(i,NB_CELL_H-1)] = MARBLE
+    if i >10:
+        map[(i,5)] = MARBLE
 
-for j in range(7):
-    map[(10,10+j)] = MARBLE
+for j in range(NB_CELL_H):
+    map[(0,j)] = MARBLE
+    if(j < 5 or j > 7):
+        map[(NB_CELL_W-1,j)] = MARBLE
+    if(j > 7):
+        map[(10,j)] = MARBLE
 
 FPS = 60
 delta_t = 1/FPS
@@ -196,13 +282,17 @@ lance_chrono("temps")
 
 #main
 
-while(pas_echap()):
+while(not(end_game(player,end_cell))):
     event = get_input()
     arrow, mouse, touche = event
     if(touche == " "):
         ttl_scr = False
     if not(ttl_scr):
         setup_portal(event, player, map, portals)
-        player = move_player(player, map, event, GRAVITY, delta_t)
-    draw_game(map, portals, player, img_player, ttl_scr)
+        player = move_player(player, map,portals, event, GRAVITY, delta_t)
+    draw_game(map, portals, player, img_player, ttl_scr, end_cell)
     delta_t = wait("temps", FPS)
+
+
+print("gagné")
+attendre_echap()
